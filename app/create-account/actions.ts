@@ -7,6 +7,8 @@ import {
 } from "@/lib/constants";
 import db from "@/lib/db";
 import { z } from "zod";
+import { redirect } from "next/navigation";
+import getSession from "@/lib/session";
 
 function checkUsername(username: string) {
   return !username.includes("potato");
@@ -20,31 +22,6 @@ const checkPassword = ({
   confirmPassword: string;
 }) => password === confirmPassword;
 
-const checkUniqueUsername = async (username: string) => {
-  const user = await db.user.findUnique({
-    where: {
-      username,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  return !Boolean(user);
-};
-
-const checkUniqueEmail = async (email: string) => {
-  const user = await db.user.findUnique({
-    where: {
-      email,
-    },
-    select: {
-      id: true,
-    },
-  });
-  return !Boolean(user);
-};
-
 const formSchema = z
   .object({
     username: z
@@ -54,16 +31,8 @@ const formSchema = z
       })
       .min(3, "way too short!")
       .trim()
-      .refine(checkUsername, "No potates allowed")
-      .refine(checkUniqueUsername, "This username is already taken"),
-    email: z
-      .string()
-      .email()
-      .toLowerCase()
-      .refine(
-        checkUniqueEmail,
-        "There is an account already registered with that email."
-      ),
+      .refine(checkUsername, "No potates allowed"),
+    email: z.string().email().toLowerCase(),
     password: z
       .string()
       .min(
@@ -72,6 +41,44 @@ const formSchema = z
       )
       .regex(PASSWORD_REGEX, PASSWORD_REGEX_ERROR),
     confirmPassword: z.string().min(PASSWORD_MIN_LENGTH),
+  })
+  .superRefine(async ({ username }, ctx) => {
+    const user = await db.user.findUnique({
+      where: {
+        username,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (user) {
+      ctx.addIssue({
+        code: "custom",
+        message: "This username is already taken",
+        path: ["username"],
+        fatal: true,
+      });
+      return z.NEVER;
+    }
+  })
+  .superRefine(async ({ email }, ctx) => {
+    const user = await db.user.findUnique({
+      where: {
+        email,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (user) {
+      ctx.addIssue({
+        code: "custom",
+        message: "This email is already taken",
+        path: ["email"],
+        fatal: true,
+      });
+      return z.NEVER;
+    }
   })
   .refine(checkPassword, {
     message: "Both passwords shoudl be the same!",
@@ -87,6 +94,8 @@ export async function createAccount(prevState: any, formData: FormData) {
   };
   const result = await formSchema.safeParseAsync(data); // zod should wait check user is exist already
   if (!result.success) {
+    console.log(result.error.flatten());
+
     return result.error.flatten();
   } else {
     const hashedPassword = await bcrypt.hash(result.data.password, 12);
@@ -102,13 +111,10 @@ export async function createAccount(prevState: any, formData: FormData) {
       },
     });
 
-    console.log(user);
+    const session = await getSession();
+    session.id = user.id;
+    await session.save();
 
-    // check user name is taken
-    // check if the email is already used
-    // hash password
-    // save the use to db
-    // log the user in
-    // redirect user to "/home"
+    redirect("/profile");
   }
 }
