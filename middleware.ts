@@ -1,6 +1,5 @@
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import getSession from "./lib/session";
+import { getSession } from "./lib/session";
 // 미들웨어는 edge runtime
 
 interface Routes {
@@ -11,6 +10,8 @@ const publicOnlyUrls: Routes = {
   "/login": true,
   "/sms": true,
   "/create-account": true,
+  "/github/start": true,
+  "/github/complete": true,
 };
 
 export async function middleware(request: NextRequest) {

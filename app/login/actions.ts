@@ -8,7 +8,7 @@ import {
 import db from "@/lib/db";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import getSession from "@/lib/session";
+import { getSession } from "@/lib/session";
 
 const checkEmailExists = async (email: string) => {
   const user = await db.user.findUnique({
