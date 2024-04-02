@@ -8,7 +8,7 @@ import {
 import db from "@/lib/db";
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/session";
+import { getSession, saveSession } from "@/lib/session";
 
 function checkUsername(username: string) {
   return !username.includes("potato");
@@ -111,10 +111,6 @@ export async function createAccount(prevState: any, formData: FormData) {
       },
     });
 
-    const session = await getSession();
-    session.id = user.id;
-    await session.save();
-
-    redirect("/profile");
+    await saveSession(user.id, "profile");
   }
 }

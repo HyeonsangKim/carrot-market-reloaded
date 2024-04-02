@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { getSession, saveSession } from "@/lib/session";
 import { notFound, redirect } from "next/navigation";
 import { NextRequest } from "next/server";
+import { getAccessToken, getUserProfile } from "./utils";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -9,30 +10,9 @@ export async function GET(request: NextRequest) {
     return new Response(null, { status: 400 });
   }
 
-  const accessTokenParams = new URLSearchParams({
-    client_id: process.env.GITHUB_CLIENT_ID!,
-    client_secret: process.env.GITHUB_CLIENT_SECRET!,
-    code,
-  }).toString();
-  const accessTokenURL = `https://github.com/login/oauth/access_token?${accessTokenParams}`;
+  const access_token = await getAccessToken(code);
 
-  const accessTokenResponse = await fetch(accessTokenURL, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-    },
-  });
-  const { error, access_token } = await accessTokenResponse.json();
-  if (error) {
-    return new Response(null, { status: 400 });
-  }
-  const userProfileResponse = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${access_token}`,
-    },
-    cache: "no-cache",
-  });
-  const { id, avatar_url, login } = await userProfileResponse.json();
+  const { id, avatar_url, login } = await getUserProfile(access_token);
   const user = await db.user.findUnique({
     where: {
       github_id: id + "",
@@ -42,15 +22,24 @@ export async function GET(request: NextRequest) {
     },
   });
   if (user) {
-    // const session = await getSession();
-    // session.id = user.id;
-    // await session.save();
-    // return redirect("/");
     await saveSession(user.id, "");
   }
+
+  const usernameExist = await db.user.findUnique({
+    where: {
+      username: login,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  console.log(usernameExist);
+  const githubUsername = usernameExist ? login + "_gh" : login;
+
   const newUser = await db.user.create({
     data: {
-      username: login,
+      username: githubUsername,
       github_id: id + "",
       avatar: avatar_url,
     },
@@ -59,9 +48,5 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  // const session = await getSession();
-  // session.id = newUser.id;
-  // await session.save();
-  // return redirect("/profile");
   await saveSession(newUser.id, "profile");
 }
