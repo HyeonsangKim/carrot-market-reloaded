@@ -27,6 +27,7 @@ export default function SMSLogin() {
             required
             minLength={1000000}
             maxLength={9999999}
+            errors={state.error?.formErrors}
           />
         ) : (
           <Input
@@ -37,7 +38,7 @@ export default function SMSLogin() {
             errors={state.error?.formErrors}
           />
         )}
-        <Button text={state.token ? "Verify Token" : "Send Verification SNS"} />
+        <Button text={state.token ? "Verify Token" : "Send Verification SMS"} />
       </form>
     </div>
   );
