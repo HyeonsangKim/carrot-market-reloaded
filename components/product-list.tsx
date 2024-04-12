@@ -25,6 +25,8 @@ export default function ProductList({ initialProducts }: ProductListProps) {
           observer.unobserve(trigger.current);
           setIsLoading(true);
           const newProducts = await getMoreProducts(page + 1);
+          console.log(newProducts);
+
           if (newProducts.length !== 0) {
             setPage((prev) => prev + 1);
             setProducts((prev) => [...prev, ...newProducts]);
@@ -56,7 +58,7 @@ export default function ProductList({ initialProducts }: ProductListProps) {
       {!isLastPage ? (
         <span
           ref={trigger}
-          style={{ marginTop: `${page + 1 * 900}vh` }} // 실제에서 이러지 않음
+          style={{ marginTop: `${page + 1}vh` }} // 실제에서 이러지 않음
           className="mb-96 text-sm font-semibold bg-orange-500 w-fit mx-auto px-3 py-2 rounded-md hover:opacity-90 active:scale-95"
         >
           {isLoading ? "Loading ..." : "Load more"}
