@@ -55,7 +55,7 @@ export default function ProductList({ initialProducts }: ProductListProps) {
         <ListProduct key={product.id} {...product} />
       ))}
 
-      {!isLastPage ? (
+      {/* {!isLastPage ? (
         <span
           ref={trigger}
           style={{ marginTop: `${page + 1}vh` }} // 실제에서 이러지 않음
@@ -63,7 +63,7 @@ export default function ProductList({ initialProducts }: ProductListProps) {
         >
           {isLoading ? "Loading ..." : "Load more"}
         </span>
-      ) : null}
+      ) : null} */}
     </div>
   );
 }
