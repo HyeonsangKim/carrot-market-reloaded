@@ -1,20 +1,83 @@
 "use client";
 import { InitialChatMessages } from "@/app/chats/[id]/page";
+import { saveMessage } from "@/app/chats/actions";
 import { formatToTimeAgo } from "@/lib/utils";
 import { ArrowUpCircleIcon } from "@heroicons/react/24/solid";
+import { RealtimeChannel, createClient } from "@supabase/supabase-js";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+const SUPABASE_PUBLIC_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpa3JhenBjYW52eWN4dmxka3NtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTM1Mjk0MDksImV4cCI6MjAyOTEwNTQwOX0.c-8n5fYNkJN0AFLJQbvJbHlM-qPtACJbvWzvY7W8kLY";
+const SUPABASE_URL = "https://tikrazpcanvycxvldksm.supabase.co";
 interface ChatMessagesListProps {
   initialMessages: InitialChatMessages;
   userId: number;
+  chatRoomId: string;
+  username: string;
+  avatar: string;
 }
 
 export default function ChatMessagesList({
   initialMessages,
   userId,
+  chatRoomId,
+  username,
+  avatar,
 }: ChatMessagesListProps) {
   const [messages, setMessages] = useState(initialMessages);
+  const [message, setMessage] = useState("");
+  const channel = useRef<RealtimeChannel>();
+  const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const {
+      target: { value },
+    } = event;
+    setMessage(value);
+  };
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setMessages((prevMsgs) => [
+      ...prevMsgs,
+      {
+        id: Date.now(),
+        payload: message,
+        created_at: new Date(),
+        userId,
+        user: {
+          username: "string",
+          avatar: "xxx",
+        },
+      },
+    ]);
+    channel.current?.send({
+      type: "broadcast",
+      event: "message",
+      payload: {
+        id: Date.now(),
+        payload: message,
+        created_at: new Date(),
+        userId,
+        user: {
+          username,
+          avatar,
+        },
+      },
+    });
+    await saveMessage(message, chatRoomId);
+    setMessage("");
+  };
+  useEffect(() => {
+    const client = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
+    channel.current = client.channel(`room-${chatRoomId}`);
+    channel.current
+      .on("broadcast", { event: "message" }, (payload) => {
+        setMessages((prev) => [...prev, payload.payload]);
+      })
+      .subscribe();
+    return () => {
+      channel.current?.unsubscribe();
+    };
+  }, [chatRoomId]);
 
   return (
     <div className="p-5 flex flex-col gap-5 min-h-screen justify-end">
@@ -27,7 +90,7 @@ export default function ChatMessagesList({
         >
           {message.userId === userId ? null : (
             <Image
-              src={message.user.avatar!}
+              src={message.user.avatar ? message.user.avatar : "/social.png"}
               alt={message.user.username}
               width={50}
               height={50}
@@ -52,11 +115,11 @@ export default function ChatMessagesList({
           </div>
         </div>
       ))}
-      <form className="flex relative">
+      <form className="flex relative" onSubmit={onSubmit}>
         <input
           required
-          //   onChange={onChange}
-          //   value={message}
+          onChange={onChange}
+          value={message}
           className="bg-transparent rounded-full w-full h-10 focus:outline-none px-5 ring-2 focus:ring-4 transition ring-neutral-200 focus:ring-neutral-50 border-none placeholder:text-neutral-400"
           type="text"
           name="message"
